@@ -1,0 +1,377 @@
+syntax = "proto3";
+
+package proto;
+
+message Void {
+}
+
+enum Consistency {
+    STRONG = 0;
+    RELAXED_READS = 1;
+}
+
+message Query {
+    string sql = 1;
+    Consistency consistency = 2;
+}
+
+message QueryResults {
+    repeated QueryRow rows = 1;
+}
+
+message QueryRow {
+    repeated string values = 1;
+}
+
+
+
+message StopSignObj{
+    uint32 config_id = 1;
+    repeated uint64 nodes = 2;
+    optional Metadata metadata = 3;
+    message Metadata{
+        repeated uint32 vec=1;
+    }
+}
+/*
+message VoteRequest {
+    uint64 from_id = 1;
+    uint64 term = 2;
+    uint64 last_log_index = 3;
+    uint64 last_log_term = 4;
+}
+
+message VoteResponse {
+    uint64 from_id = 1;
+    uint64 term = 2;
+    bool vote_granted = 3;
+}
+
+message AppendEntriesRequest {
+    uint64 from_id = 1;
+    uint64 term = 2;
+    uint64 prev_log_index = 3;
+    uint64 prev_log_term = 4;
+    repeated LogEntry entries = 5;
+    uint64 commit_index = 6;
+}
+
+message LogEntry {
+    uint64 id = 1;
+    string sql = 2;
+    uint64 index = 3;
+    uint64 term = 4;
+}
+
+message AppendEntriesResponse {
+    uint64 from_id = 1;
+    uint64 term = 2;
+    bool success = 3;
+    uint64 last_index = 4;
+    optional uint64 mismatch_index = 5;
+}
+*/
+
+/*message Snapshot {
+    Entry entry=1;
+}*/
+
+
+
+message BallotObj {
+    uint32 n = 1;
+    uint64 priority = 2;
+    uint64 pid = 3;
+}
+
+message Entry {
+    uint64 id = 1;
+    string sql = 2;
+}
+
+message Entries {
+    repeated Entry e = 1;
+}
+
+message SyncItemObj {
+    oneof inum {
+        Entries e = 1;
+        SnapshotType s = 2;
+        None none = 3;
+    }
+
+    message Entries {
+        repeated StoreCommandObj vec = 1;
+    }
+
+    enum SnapshotType {
+        Complete = 0;
+        Delta = 1;
+        Phantom = 2;
+    }
+
+    message None {
+    }
+
+}
+
+    
+
+
+message None{
+    string no=1;
+}
+
+
+
+message Metadata{
+    repeated uint32 data=1;
+}
+
+message StoreCommandObj {
+    uint64 id = 1; 
+    string query = 2;
+}
+
+
+message PrepareReqObj {
+
+}
+
+message PrepareObj {
+    /// The current round.
+    BallotObj n=1;
+    /// The decided index of this leader.
+    uint64 ld=2;
+    /// The latest round in which an entry was accepted.
+    BallotObj n_accepted=3;
+    /// The log length of this leader.
+    uint64 la=4;
+}
+
+
+
+/// Promise message sent by a follower in response to a [`Prepare`] sent by the leader.
+
+message PromiseObj
+{
+    /// The current round.
+    BallotObj n=1;
+    /// The latest round in which an entry was accepted.
+    BallotObj n_accepted=2;
+    /// The suffix of missing entries at the leader.
+    optional SyncItemObj sync_item = 3;
+    /// The decided index of this follower.
+    uint64 ld = 4;
+    /// The log length of this follower.
+    uint64 la = 5;
+    /// The StopSign accepted by this follower
+    optional StopSignObj stopSign = 6;
+}
+
+
+
+
+/// AcceptSync message sent by the leader to synchronize the logs of all replicas in the prepare phase.
+message AcceptSyncObj {
+    /// The current round.
+    BallotObj n = 1;
+    /// Entries that the receiving replica is missing in its log.
+    SyncItemObj sync_item = 2;
+    /// The index of the log where the entries from `sync_item` should be applied at or the compacted idx
+    uint64 sync_idx = 3;
+    /// The decided index
+    optional uint64 decide_idx = 4;
+    /// StopSign to be accepted
+    optional StopSignObj stopSign= 5;
+}
+
+
+
+/// The first accept message sent. Only used by a pre-elected leader after reconfiguration.
+message FirstMessageObj {
+    /// The current round.
+    BallotObj n = 1;
+    /// Entries to be replicated.
+    repeated  StoreCommandObj  e = 2; 
+}
+
+
+
+/// Message with entries to be replicated and the latest decided index sent by the leader in the accept phase.
+message AcceptDecideObj
+{
+    /// The current round.
+    BallotObj n = 1;
+    /// The decided index.
+    uint64 ld = 2;
+    /// Entries to be replicated.
+    repeated  StoreCommandObj  e = 3; 
+}
+
+
+
+/// Message sent by follower to leader when entries has been accepted.
+
+message AcceptedObj {
+    /// The current round.
+    BallotObj n = 1;
+    /// The accepted index.
+    uint64 la = 2;
+}
+
+
+
+/// Message sent by leader to followers to decide up to a certain index in the log.
+
+message DecideObj{
+    /// The current round.
+    BallotObj n = 1;
+    /// The decided index.
+    uint64 ld = 2;
+}
+
+
+
+/// Message sent by leader to followers to accept a StopSign
+
+message AcceptSSObj {
+    /// The current round.
+    BallotObj n = 1;
+    /// The decided index.
+    StopSignObj ss = 2;
+}
+
+message ProposalForwardObj{
+    repeated StoreCommandObj entries = 1;
+}
+
+
+
+
+
+/// Message sent by followers to leader when accepted StopSign
+
+message AcceptedSSObj {
+    /// The current round.
+    BallotObj n = 1;
+}
+
+
+
+/// Message sent by leader to decide a StopSign
+message DecidedSSObj {
+    /// The current round.
+    BallotObj n = 1;
+}
+
+
+
+/// Compaction Request
+message CompactionObj {
+    oneof compaction {
+        Trim trim = 1;
+        uint64 snapshot = 2;
+    }
+    message Trim {
+        optional uint64 trim = 1;
+    }
+}
+
+
+message DecideStopSignObj {
+    BallotObj n = 1;
+}
+
+
+
+
+/// An enum for all the different message types.
+message Psg
+{
+    uint64 from =1;
+    uint64 to =2;
+
+
+    
+    oneof msg {
+         /// Request a [`Prepare`] to be sent from the leader. Used for fail-recovery.
+         PrepareObj Prepare = 3;
+         PromiseObj Promise  = 4;
+         AcceptSyncObj AcceptSync  = 5;
+         FirstMessageObj FirstAccept  = 6;
+         AcceptDecideObj AcceptDecide  = 7;
+         AcceptedObj Accepted  = 8;
+         DecideObj Decide  = 9;
+
+        /// Forward client proposals to the leader.
+        AcceptSSObj AcceptStopSign  = 10;
+        AcceptedSSObj AcceptedStopSign  =11;
+        DecidedSSObj DecideSSSign  = 12;
+        CompactionObj Compaction  = 13;
+        CompactionObj forward_compaction=16;
+        /// Forward client proposals to the leader
+        ProposalForwardObj proposalforward =14;
+        PrepareReqObj preparereq = 15;
+        
+
+
+    }
+
+
+
+    }
+
+    
+
+    
+
+    
+
+
+
+
+
+
+
+
+
+// BLE/
+/// A struct for a Paxos message that also includes sender and receiver.
+message BleMessageObj {
+    /// Sender of `msg`.
+    uint64 from = 1;
+    /// Receiver of `msg`.
+    uint64 to = 2;
+    /// The message content.
+    oneof msg {
+        HeartbeatRequestObj heartbeatreq = 3;
+        HeartbeatReplyObj heartbeatrep = 4;
+    }
+}
+
+
+
+/// Requests a reply from all the other replicas.
+message HeartbeatRequestObj {
+
+        /// Number of the current round.
+    uint32 round = 1;
+}
+
+// Reply to hearbeat request
+message HeartbeatReplyObj {
+     /// Number of the current round.
+    uint32 round = 1;
+    /// Ballotobj of a replica.
+    BallotObj ballot = 2;
+    /// States if the replica is a candidate to become a leader.
+    bool majority_connected = 3;
+}
+
+
+service RPC {
+    rpc Execute(Query) returns (QueryResults);// this if to execute sql query
+    rpc HandleBLEMessage(BleMessageObj) returns (Void);//// this is for ballot leader election
+    rpc HandleSPMessage(Psg) returns (Void);  //  this is for sequence paxos
+}
